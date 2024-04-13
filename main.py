@@ -5,10 +5,10 @@ from wonderwords import RandomWord
 r = RandomWord()
 pygame.init()
 
-# Получение информации о дисплее и создание окна в полноэкранном режиме
 display_info = pygame.display.Info()
 screen_width = display_info.current_w
 screen_height = display_info.current_h
+
 screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
 pygame.display.set_caption("Lexicant, the word wizzard.")
 
@@ -23,7 +23,7 @@ background_image = pygame.transform.scale(background_image, (screen_width, scree
 
 # Создание игрока
 player_width = 50
-player_height = 100
+player_height = 150
 player_x = 50
 player_y = screen_height - player_height - 50
 player = pygame.Rect(player_x, player_y, player_width, player_height)
@@ -64,13 +64,15 @@ def create_monster():
     monster_width = monster_image.get_width()
     monster_height = monster_image.get_height()
     monster_x = screen_width
-    monster_y = random.randint(50, screen_height - platform_height - monster_height - 50)
-    monster_word = r.word(word_max_length=5)
-    monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
-    
+    monster_word = r.word(word_min_length=9)
+
     if monster_type in ["banshee", "fire_elemental"]:
+        monster_y = random.randint(screen_height - platform_height - 150, screen_height - platform_height - 140) 
+        monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
         flying_monsters.append((monster, monster_word, monster_type))
     else:
+        monster_y = screen_height - platform_height - 60
+        monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
         walking_monsters.append((monster, monster_word, monster_type))
 
 # Функция для обновления позиции игрока
@@ -95,7 +97,7 @@ def update_player():
     if player.colliderect(platform):
         player.bottom = platform.top
 
-# Функция для обновления позиции монстров
+
 def update_monsters():
     for monster, word, monster_type in walking_monsters:
         monster.x -= 5
@@ -107,7 +109,7 @@ def update_monsters():
         if monster.right < 0:
             flying_monsters.remove((monster, word, monster_type))
 
-# Функция для проверки столкновений смонстрами
+
 def check_collision():
     global player_health, player_score
 
@@ -125,7 +127,7 @@ def check_collision():
             if player_health <= 0:
                 game_over()
 
-# Функция для отображения экрана "Game Over"
+
 def game_over():
     game_over_text = font.render("You failed", True, RED)
     try_again_button = pygame.Rect(0, 0, 200, 80)
@@ -143,17 +145,15 @@ def game_over():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if try_again_button.collidepoint(event.pos):
-                    running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    quit()
 
-        pygame.display.flip()
-
-# Функция для отображения меню
 def show_menu():
     title_text = font.render("Lexicant, the Word Wizard", True, WHITE)
     play_button = pygame.Rect(0, 0, 200, 80)
-    play_button.center = (screen_width // 2, screen_height // 2)
+    play_button.center = (480, 480)
 
     running = True
     while running:
@@ -172,7 +172,7 @@ def show_menu():
 
         pygame.display.flip()
 
-# Главный игровой цикл
+
 def main():
     global player_health, player_score
 
@@ -205,6 +205,9 @@ def main():
                     user_input = ""
                 elif event.key == pygame.K_BACKSPACE:
                     user_input = user_input[:-1]
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    quit()
                 else:
                     user_input += event.unicode
 
@@ -234,11 +237,10 @@ def main():
         screen.blit(score_text, (10, 100))
 
         input_text = font.render(user_input, True, WHITE)
-        screen.blit(input_text, (screen_width - input_text.get_width() - 10, 10))
-
+        screen.blit(input_text, (50, screen_height - player_height - 87))
         pygame.display.flip()
         clock.tick(60)
 
-# Запуск игры
+
 main()
 pygame.quit()
