@@ -33,13 +33,23 @@ is_jumping = False
 player_health = 3
 player_score = 0
 
+# Здесь появиться оптимизация
+pygame_events = [
+    pygame.QUIT,
+    pygame.KEYDOWN,
+    pygame.MOUSEBUTTONDOWN
+]
+pygame.event.set_allowed(pygame_events)
+
+
 # Создание платформы
 platform_height = 50
 platform = pygame.Rect(0, screen_height - platform_height, screen_width, platform_height)
 
-# Списки для хранения монстров
+# Списки для хранения сущностей
 walking_monsters = []
 flying_monsters = []
+words_to_use = r.random_words(200)
 
 # Загрузка шрифта
 font = pygame.font.Font('src/8bitlim.ttf', 36)
@@ -64,7 +74,7 @@ def create_monster():
     monster_width = monster_image.get_width()
     monster_height = monster_image.get_height()
     monster_x = screen_width
-    monster_word = r.word(word_min_length=9)
+    monster_word = random.choice(words_to_use)
 
     if monster_type in ["banshee", "fire_elemental"]:
         monster_y = random.randint(screen_height - platform_height - 150, screen_height - platform_height - 140) 
@@ -209,7 +219,8 @@ def main():
                     pygame.quit()
                     quit()
                 else:
-                    user_input += event.unicode
+                    if event.unicode.isalpha():
+                        user_input += event.unicode.lower()
 
         monster_timer += 1
         if monster_timer == 120:
