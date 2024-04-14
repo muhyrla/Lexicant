@@ -65,7 +65,7 @@ particles = []
 with open('src/summary.txt', encoding='utf-8') as words:
     words_to_use = words.readlines()
 
-font = pygame.font.Font('src/Hardpixel.otf', 36)
+font = pygame.font.Font('src/EpilepsySans.ttf', 36)
 
 monster_images = {
     "wisp": pygame.transform.scale(pygame.image.load("src/wisp.png").convert_alpha(), (110, 110)),
@@ -121,19 +121,21 @@ def create_monster():
     monster_height = monster_image.get_height()
     monster_x = screen_width
     word_length = 100
-    while word_length >= 5:
-        monster_word = random.choice(words_to_use).replace('\n', '')
-        word_length = len(monster_word)
-    if monster_type == "wisp":
-        monster_y = random.randint(50, max_flying_monster_height)
-    else:
-        monster_y = screen_height - platform_height - monster_height + 35
-        
-    levitation_angle = 0 
-    monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
-    base_y = monster_y
-    monsters.append((monster, monster_word, monster_type, levitation_angle, base_y))
+    
+    monster_word = random.choice(words_to_use).replace('\n','')
 
+    if len(monster_word) < 7 and 'ё' not in monster_word:
+        if monster_type == "wisp":
+            monster_y = random.randint(50, max_flying_monster_height)
+        else:
+            monster_y = screen_height - platform_height - monster_height + 35
+            
+        levitation_angle = 0 
+        monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
+        base_y = monster_y
+        monsters.append((monster, monster_word, monster_type, levitation_angle, base_y))
+    else:
+        create_monster()
 
 def update_monsters():
     global player_health, monsters
@@ -232,7 +234,7 @@ def show_menu():
         screen.blit(title_text, (title_x, title_y))
         
         play_text = font.render("Играть", True, WHITE)
-        screen.blit(red_button, (title_x+105, title_y+105))       
+        screen.blit(red_button, (title_x+35, title_y+105))       
         screen.blit(play_text, (play_button.centerx - play_text.get_width() // 2, play_button.centery - play_text.get_height() // 2))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -262,7 +264,7 @@ def main():
     running = True
     
     while running:
-        align_to_hard = float(player_score/10000)+1
+        align_to_hard = float(player_score/50000)+1
         image_width = background_image.get_width()    
         screen.blit(background_image, (x_pos, 0))
         
@@ -277,7 +279,7 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
+                if event.key == pygame.K_SPACE:
                     if boss_appeared and monsters[0][2] == 'ponasenkov' and not boss_killed:
                         boss, word, boss_type, angle, base_y = monsters[0]
                         if user_input.strip() == word:
@@ -299,7 +301,7 @@ def main():
                                 shot_sound.play()
                                 create_particles(monster.x, monster.y)
                                 monsters.pop(i)
-                                player_score += 500
+                                player_score += 750
                                 break
                         user_input = ""
                 elif event.key == pygame.K_BACKSPACE:
@@ -322,7 +324,7 @@ def main():
 
         
         monster_timer += 1
-        if monster_timer >= 100/align_to_hard:  
+        if monster_timer >= 90:  
             create_monster()
             monster_timer = 0 
 
