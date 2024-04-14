@@ -45,7 +45,7 @@ levitation_speed = 0.03
 levitation_angle = 0
 
 
-# Здесь появиться оптимизация
+# Здесь появиться оптимизация (net)
 pygame_events = [
     pygame.QUIT,
     pygame.KEYDOWN,
@@ -72,7 +72,7 @@ monster_images = {
     "slime": pygame.transform.scale(pygame.image.load("src/slime.png").convert_alpha(), (130, 130))
 }
 
-monster_images['ponasennkov'] = pygame.transform.scale(pygame.image.load("src/ponasenkov.png").convert_alpha(), (200, 363))
+monster_images['ponasenkov'] = pygame.transform.scale(pygame.image.load("src/ponasenkov.png").convert_alpha(), (200, 363))
 
 red_button = pygame.image.load('src/red_button.png')
 red_button = pygame.transform.scale(red_button, (640//2,234//2))
@@ -81,6 +81,12 @@ full_heart_image = pygame.transform.scale(full_heart_image, (80, 80))
 
 player_image = pygame.image.load("src/player.png")
 player_image = pygame.transform.scale(player_image, (240, 240))
+
+die_sound = pygame.mixer.Sound('src/die.wav')
+shot_sound = pygame.mixer.Sound('src/shot.wav')
+pygame.mixer.music.set_volume(1.1)
+pygame.mixer.music.load('src/ponasenkov.wav')
+
 
 
 class Particle:
@@ -106,7 +112,7 @@ class Particle:
 
 def create_monster():
 
-    if any(m[2] == 'ponasennkov' for m in monsters):
+    if any(m[2] == 'ponasenkov' for m in monsters):
         return
 
     monster_type = random.choice(["wisp", "slime"])
@@ -132,29 +138,28 @@ def create_monster():
 def update_monsters():
     global player_health, monsters
 
-    for i in range(len(monsters) - 1, -1, -1):
-        monster, word, monster_type, angle, base_y = monsters[i]
-        
-        if monster_type == 'ponasennkov':
-            monster_speed = 0.5
-        else:
-            monster_speed = 3   # ПОДУМАТЬ В СКОРОСТЬ МОБОВ
-        
-        monster.x -= monster_speed
-        
-        if monster.right < 0:
-            monsters.pop(i)
-            if monster_type != 'ponasennkov':
+    for i, (monster, word, monster_type, angle, base_y) in enumerate(monsters):
+        if monster_type == 'ponasenkov':
+            monster.x -= player_health
+            if monster.x + monster.width < 0:
                 player_health -= 1
-            else:
-                player_health 
+                monster.x = screen_width
+            if word == "":
+                monsters.pop(i)
+                continue
         else:
-            if monster_type == 'wisp':
-                angle += 0.05
-                levitation_range = 10
-                monster.y = base_y + levitation_range * math.sin(angle)
-            
-            monsters[i] = (monster, word, monster_type, angle, base_y)
+            monster.x -= 3*align_to_hard
+            if monster.right < 0:
+                monsters.pop(i)
+                player_health -= 1
+                break
+
+        if monster_type == 'wisp':
+            angle += 0.05
+            levitation_range = 10
+            monster.y = base_y + levitation_range * math.sin(angle)
+
+        monsters[i] = (monster, word, monster_type, angle, base_y)
 
 
 def update_player():
@@ -173,6 +178,7 @@ def game_over():
     game_over_text = font.render("У тебя не получилось победить Понасенкова :(", True, RED)
     try_again_button = pygame.Rect(screen_width // 2 - 320 // 2, screen_height // 2, 320, 117)
     try_again_text = font.render("Еще раз!", True, WHITE)
+    score = font.render(f"Твой финальный счёт: {player_score}", True, GREEN)
 
     running = True
     while running:
@@ -189,9 +195,10 @@ def game_over():
                     running = False
 
         screen.blit(background_image, (0, 0))
-        screen.blit(game_over_text, (screen_width // 2 - game_over_text.get_width() // 2, screen_height // 2 - 150))
+        screen.blit(game_over_text, (screen_width // 2 - game_over_text.get_width() // 2, screen_height // 2 - 200))
         screen.blit(red_button, (screen_width // 2 - 320 // 2, screen_height // 2))
         screen.blit(try_again_text, (try_again_button.centerx - try_again_text.get_width() // 2, try_again_button.centery - try_again_text.get_height() // 2))
+        screen.blit(score, (screen_width // 2 - game_over_text.get_width() // 2, screen_height // 2 - 150))
 
         pygame.display.flip()
 
@@ -199,12 +206,13 @@ def game_over():
 
 
 def reset_game():
-    global player_health, player_score, x_pos, monsters, boss_appeared
+    global player_health, player_score, x_pos, monsters, boss_appeared, align_to_hard
 
     player_health = 3
     player_score = 0
     x_pos = 0
     boss_appeared = False
+    align_to_hard = 1
 
     monsters = []
 
@@ -237,22 +245,24 @@ def show_menu():
 
 
 def main():
-    global player_health, player_score, x_pos, levitation_angle
+    global player_health, player_score, x_pos, levitation_angle, boss_killed, align_to_hard
 
-    game_over()
     reset_game()
     show_menu()
+    player_health = 3
     boss_appeared = False
     monster_timer = 0
     user_input = ""
     clock = pygame.time.Clock()
     boss_appeared = False
     boss_phrase = "всей швали моих критиков моих завистников вы думаете что с человеком который вот до такой степени точно исследует тему можно спорить вы думаете что я вас не переиграю что я вас не уничтожу я вас уничтожу".split()
+    #boss_phrase = "всей швали уничтожу".split()
     current_boss_word_index = 0
-
+    boss_killed = False
     running = True
     
     while running:
+        align_to_hard = float(player_score/10000)+1
         image_width = background_image.get_width()    
         screen.blit(background_image, (x_pos, 0))
         
@@ -268,24 +278,28 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    if boss_appeared and monsters[0][2] == 'ponasennkov':
+                    if boss_appeared and monsters[0][2] == 'ponasenkov' and not boss_killed:
                         boss, word, boss_type, angle, base_y = monsters[0]
                         if user_input.strip() == word:
                             current_boss_word_index += 1
                             if current_boss_word_index >= len(boss_phrase):
                                 monsters.pop(0)
                                 boss_appeared = False
+                                user_input = ""
+                                boss_killed = True
                             else:
-                                monsters[0] = (boss, boss_phrase[current_boss_word_index], boss_type, angle, base_y)
-                            user_input = ""
+                                if not boss_killed:
+                                    monsters[0] = (boss, boss_phrase[current_boss_word_index], boss_type, angle, base_y)
+                                    user_input = ""
                         else:
                             pass
                     else:
                         for i, (monster, word, monster_type, angle, base_y) in enumerate(monsters):
                             if word == user_input:
+                                shot_sound.play()
                                 create_particles(monster.x, monster.y)
                                 monsters.pop(i)
-                                player_score += 9000
+                                player_score += 500
                                 break
                         user_input = ""
                 elif event.key == pygame.K_BACKSPACE:
@@ -297,17 +311,18 @@ def main():
                     if 'а' <= event.unicode <= 'я' or 'А' <= event.unicode <= 'Я':
                         user_input += event.unicode.lower()
 
-        if player_score >= 10000 and not boss_appeared:
-            monsters.clear()  
+        if player_score >= 10000 and not boss_appeared and not boss_killed:
+            monsters.clear()
+            pygame.mixer.music.play()
             boss_x = screen_width - 200
             boss_y = screen_height // 2 - 100
             boss = pygame.Rect(boss_x, boss_y, 200, 200)
-            monsters.append((boss, boss_phrase[current_boss_word_index], 'ponasennkov', 0, boss_y))
+            monsters.append((boss, boss_phrase[current_boss_word_index], 'ponasenkov', 0, boss_y))
             boss_appeared = True
 
-
+        
         monster_timer += 1
-        if monster_timer >= 100:  
+        if monster_timer >= 100/align_to_hard:  
             create_monster()
             monster_timer = 0 
 
@@ -332,6 +347,7 @@ def main():
             word_text = font.render(word, True, BLACK)
             screen.blit(word_text, (monster.centerx - word_text.get_width() // 2, monster.y - word_text.get_height() - 10))
 
+        print(player_health)
         if player_health == 0:
             game_over()
 
