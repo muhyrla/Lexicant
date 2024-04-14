@@ -11,7 +11,7 @@ display_info = pygame.display.Info()
 screen_width = display_info.current_w
 screen_height = display_info.current_h
 
-screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Lexicant, the word wizzard.")
 
 WHITE = (255, 255, 255)
@@ -68,18 +68,20 @@ with open('src/summary.txt', encoding='utf-8') as words:
 font = pygame.font.Font('src/Hardpixel.otf', 36)
 
 monster_images = {
-    "wisp": pygame.transform.scale(pygame.image.load("src/wisp.png").convert_alpha(), (100, 100)),
-    "slime": pygame.transform.scale(pygame.image.load("src/slime.png").convert_alpha(), (80, 80))
+    "wisp": pygame.transform.scale(pygame.image.load("src/wisp.png").convert_alpha(), (110, 110)),
+    "slime": pygame.transform.scale(pygame.image.load("src/slime.png").convert_alpha(), (130, 130))
 }
 
-monster_images['ponasennkov'] = pygame.transform.scale(pygame.image.load("src/ponasenkov.jpg").convert_alpha(), (200, 200))
+monster_images['ponasennkov'] = pygame.transform.scale(pygame.image.load("src/ponasenkov.png").convert_alpha(), (200, 363))
 
-
+red_button = pygame.image.load('src/red_button.png')
+red_button = pygame.transform.scale(red_button, (640//2,234//2))
 full_heart_image = pygame.image.load("src/full_heart.png").convert_alpha()
 full_heart_image = pygame.transform.scale(full_heart_image, (80, 80))
 
 player_image = pygame.image.load("src/player.png")
 player_image = pygame.transform.scale(player_image, (240, 240))
+
 
 class Particle:
     def __init__(self, x, y):
@@ -119,7 +121,7 @@ def create_monster():
     if monster_type == "wisp":
         monster_y = random.randint(50, max_flying_monster_height)
     else:
-        monster_y = screen_height - platform_height - monster_height
+        monster_y = screen_height - platform_height - monster_height + 35
         
     levitation_angle = 0 
     monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
@@ -127,33 +129,32 @@ def create_monster():
     monsters.append((monster, monster_word, monster_type, levitation_angle, base_y))
 
 
-
 def update_monsters():
     global player_health, monsters
 
-    for i, (monster, word, monster_type, angle, base_y) in enumerate(monsters):
+    for i in range(len(monsters) - 1, -1, -1):
+        monster, word, monster_type, angle, base_y = monsters[i]
+        
         if monster_type == 'ponasennkov':
-            monster.x -= 1
-            if monster.x <= player.x + player.width:
-                game_over()
-                return
-            if word == "":
-                monsters.pop(i)
-                continue
-
+            monster_speed = 0.5
         else:
-            monster.x -= 3
-            if monster.right < 0:
-                monsters.pop(i)  
-                if monster_type != 'ponasennkov':
-                    player_health -= 1
-
-        if monster_type in ['wisp']:
-            angle += 0.05
-            levitation_range = 10
-            monster.y = base_y + levitation_range * math.sin(angle)
+            monster_speed = 3   # ПОДУМАТЬ В СКОРОСТЬ МОБОВ
+        
+        monster.x -= monster_speed
+        
+        if monster.right < 0:
+            monsters.pop(i)
+            if monster_type != 'ponasennkov':
+                player_health -= 1
+            else:
+                player_health 
+        else:
+            if monster_type == 'wisp':
+                angle += 0.05
+                levitation_range = 10
+                monster.y = base_y + levitation_range * math.sin(angle)
+            
             monsters[i] = (monster, word, monster_type, angle, base_y)
-
 
 
 def update_player():
@@ -169,8 +170,9 @@ def create_particles(x, y):
 
 
 def game_over():
-    game_over_text = font.render("You failed", True, RED)
-    try_again_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2, 200, 80)
+    game_over_text = font.render("У тебя не получилось победить Понасенкова :(", True, RED)
+    try_again_button = pygame.Rect(screen_width // 2 - 320 // 2, screen_height // 2, 320, 117)
+    try_again_text = font.render("Еще раз!", True, WHITE)
 
     running = True
     while running:
@@ -186,10 +188,9 @@ def game_over():
                 if try_again_button.collidepoint(event.pos):
                     running = False
 
-        screen.fill(BLACK)
-        screen.blit(game_over_text, (screen_width // 2 - game_over_text.get_width() // 2, screen_height // 2 - 50))
-        pygame.draw.rect(screen, GREEN, try_again_button)
-        try_again_text = font.render("Try Again", True, WHITE)
+        screen.blit(background_image, (0, 0))
+        screen.blit(game_over_text, (screen_width // 2 - game_over_text.get_width() // 2, screen_height // 2 - 150))
+        screen.blit(red_button, (screen_width // 2 - 320 // 2, screen_height // 2))
         screen.blit(try_again_text, (try_again_button.centerx - try_again_text.get_width() // 2, try_again_button.centery - try_again_text.get_height() // 2))
 
         pygame.display.flip()
@@ -198,7 +199,7 @@ def game_over():
 
 
 def reset_game():
-    global player_health, player_score, x_pos, monsters
+    global player_health, player_score, x_pos, monsters, boss_appeared
 
     player_health = 3
     player_score = 0
@@ -209,18 +210,22 @@ def reset_game():
 
 
 def show_menu():
-    title_text = font.render("Lexicat, the Word Wizard", True, BLACK)
+    title_text = font.render("Лексикот - буквенный маг", True, BLACK)
     play_button = pygame.Rect(0, 0, 200, 80)
-    play_button.center = (900//2+180, 900//2)
-
+    
+    play_button.center = (screen_width // 2, screen_height // 2 + 50)
+    
     running = True
     while running:
-        screen.fill(WHITE)
-        screen.blit(title_text, ((screen_width // 2 - title_text.get_width() // 2)-130, (screen_height // 2 - 100)-50))
-        pygame.draw.rect(screen, GREEN, play_button)
-        play_text = font.render("Play", True, WHITE)
+        screen.blit(background_image, (0,0))
+        
+        title_x = screen_width // 2 - title_text.get_width() // 2
+        title_y = screen_height // 2 - 100
+        screen.blit(title_text, (title_x, title_y))
+        
+        play_text = font.render("Играть", True, WHITE)
+        screen.blit(red_button, (title_x+105, title_y+105))       
         screen.blit(play_text, (play_button.centerx - play_text.get_width() // 2, play_button.centery - play_text.get_height() // 2))
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -234,6 +239,7 @@ def show_menu():
 def main():
     global player_health, player_score, x_pos, levitation_angle
 
+    game_over()
     reset_game()
     show_menu()
     boss_appeared = False
@@ -326,20 +332,23 @@ def main():
             word_text = font.render(word, True, BLACK)
             screen.blit(word_text, (monster.centerx - word_text.get_width() // 2, monster.y - word_text.get_height() - 10))
 
+        if player_health == 0:
+            game_over()
 
         for i in range(player_health):
             screen.blit(full_heart_image, (10 + i * 90, 10))
 
-        score_text = font.render(f"Score: {player_score}", True, BLACK)
+        score_text = font.render(f"Счёт -  {player_score}", True, BLACK)
         screen.blit(score_text, (10, 100))
 
         input_text = font.render(user_input, True, BLACK)
-        screen.blit(input_text, (50, screen_height - player_height - 210))
+        screen.blit(input_text, (75, player.y-36))
 
         pygame.display.flip()
         clock.tick(60)
 
     pygame.quit()
+
 
 main()
 pygame.quit()
