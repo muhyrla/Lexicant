@@ -298,7 +298,7 @@ def main():
                                 shot_sound.play()
                                 create_particles(monster.x, monster.y)
                                 monsters.pop(i)
-                                player_score += 10000
+                                player_score += 750
                                 break
                         user_input = ""
                 elif event.key == pygame.K_BACKSPACE:
