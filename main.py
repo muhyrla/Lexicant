@@ -40,8 +40,8 @@ player_y = screen_height - player_height - 250
 player = pygame.Rect(player_x, player_y, player_width, player_height)
 player_health = 3
 player_score = 0
-levitation_range = 10  # половина максимального движения вверх и вниз
-levitation_speed = 0.03  # скорость изменения угла
+levitation_range = 10
+levitation_speed = 0.03
 levitation_angle = 0
 
 
@@ -59,8 +59,7 @@ platform = pygame.Rect(0, screen_height - platform_height, screen_width, platfor
 
 max_flying_monster_height = screen_height - player_height - 300
 
-walking_monsters = []
-flying_monsters = []
+monsters = []
 particles = []
 words_to_use = r.random_words(200, word_max_length=3)
 
@@ -74,7 +73,7 @@ monster_images = {
 full_heart_image = pygame.image.load("src/full_heart.png").convert_alpha()
 full_heart_image = pygame.transform.scale(full_heart_image, (80, 80))
 
-player_image = pygame.image.load("src/player.png")  # Загрузите ваше изображение игрока
+player_image = pygame.image.load("src/player.png")
 player_image = pygame.transform.scale(player_image, (240, 240))
 
 class Particle:
@@ -90,8 +89,8 @@ class Particle:
     def update(self):
         self.x += self.x_vel
         self.y += self.y_vel
-        self.size -= 0.1  # Уменьшаем размер
-        self.life -= 0.1  # Уменьшаем жизнь
+        self.size -= 0.1
+        self.life -= 0.1
 
     def draw(self, screen):
         if self.life > 0 and self.size > 0:
@@ -99,42 +98,46 @@ class Particle:
 
 
 def create_monster():
-    monster_type = random.choice(list(monster_images.keys()))
+    monster_type = random.choice(["wisp", "slime"])
     monster_image = monster_images[monster_type]
     monster_width = monster_image.get_width()
     monster_height = monster_image.get_height()
-    monster_x = screen_width  # Монстры появляются с правого края экрана
+    monster_x = screen_width
     monster_word = random.choice(words_to_use)
 
     if monster_type == "wisp":
-        # Допустим, wisp летает, поэтому он может появляться выше на экране
         monster_y = random.randint(50, max_flying_monster_height)
-        monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
-        flying_monsters.append((monster, monster_word, monster_type))
     else:
         monster_y = screen_height - platform_height - monster_height
-        monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
-        walking_monsters.append((monster, monster_word, monster_type))
+        
+    levitation_angle = 0 
+    monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
+    base_y = monster_y
+    monsters.append((monster, monster_word, monster_type, levitation_angle, base_y))
+
 
 
 def update_monsters():
     global player_health
+    levitation_range = 10
+    levitation_speed = 0.05
 
-    for monster, word, monster_type in list(walking_monsters):
-        monster.x -= 5
+    for i in range(len(monsters) - 1, -1, -1):
+        monster, word, monster_type, angle, base_y = monsters[i]
+        monster_speed = 3 if monster_type == "wisp" else 5
+        monster.x -= monster_speed
+
         if monster.right < 0:
-            walking_monsters.remove((monster, word, monster_type))
-            player_health -= 1  # Уменьшаем здоровье игрока, когда монстр уходит за экран
+            monsters.pop(i)
+            player_health -= 1
+        elif monster_type == "wisp":
+            angle += levitation_speed
+            monster.y = base_y + levitation_range * math.sin(angle)
+            monsters[i] = (monster, word, monster_type, angle, base_y)
 
-    for monster, word, monster_type in list(flying_monsters):
-        monster.x -= 3
-        if monster.right < 0:
-            flying_monsters.remove((monster, word, monster_type))
-            player_health -= 1  # То же самое для летающих монстров
-
-    # Проверяем, не закончилась ли игра из-за потери здоровья
     if player_health <= 0:
         game_over()
+
 
 
 
@@ -146,7 +149,7 @@ def update_player():
 
 
 def create_particles(x, y):
-    for _ in range(20):  # Создаем 20 частиц для визуального эффекта
+    for _ in range(20):
         particles.append(Particle(x, y))
 
 
@@ -161,12 +164,12 @@ def game_over():
                 pygame.quit()
                 quit()
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:  # Добавим возможность выхода по нажатию ESC
+                if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     quit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if try_again_button.collidepoint(event.pos):
-                    running = False  # Выходим из цикла game_over и возобновляем игру
+                    running = False
 
         screen.fill(BLACK)
         screen.blit(game_over_text, (screen_width // 2 - game_over_text.get_width() // 2, screen_height // 2 - 50))
@@ -180,14 +183,13 @@ def game_over():
 
 
 def reset_game():
-    global player_health, player_score, x_pos, walking_monsters, flying_monsters
+    global player_health, player_score, x_pos, monsters
 
     player_health = 3
     player_score = 0
     x_pos = 0
 
-    walking_monsters = []
-    flying_monsters = []
+    monsters = []
 
 
 def show_menu():
@@ -240,16 +242,9 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    for monster, word, monster_type in walking_monsters:
-                        
+                    for i, (monster, word, monster_type, angle, base_y) in enumerate(monsters):
                         if word == user_input:
-                            walking_monsters.remove((monster, word, monster_type))
-                            create_particles(monster.x, monster.y)
-                            player_score += 500
-                            break
-                    for monster, word, monster_type in flying_monsters:
-                        if word == user_input:
-                            flying_monsters.remove((monster, word, monster_type))
+                            monsters.pop(i)
                             create_particles(monster.x, monster.y)
                             player_score += 500
                             break
@@ -284,7 +279,7 @@ def main():
             particle.draw(screen)
 
         screen.blit(player_image, player)
-        for monster, word, monster_type in walking_monsters + flying_monsters:
+        for monster, word, monster_type, angle, base_y in monsters:
             screen.blit(monster_images[monster_type], (monster.x, monster.y))
             word_text = font.render(word, True, BLACK)
             screen.blit(word_text, (monster.centerx - word_text.get_width() // 2, monster.y - word_text.get_height() - 10))
@@ -302,9 +297,6 @@ def main():
         clock.tick(60)
 
     pygame.quit()
-
-
-
 
 main()
 pygame.quit()
