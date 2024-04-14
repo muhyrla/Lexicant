@@ -279,7 +279,7 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
+                if (event.key == pygame.K_SPACE) or (event.key == pygame.K_RETURN):
                     if boss_appeared and monsters[0][2] == 'ponasenkov' and not boss_killed:
                         boss, word, boss_type, angle, base_y = monsters[0]
                         if user_input.strip() == word:
