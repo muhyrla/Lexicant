@@ -1,6 +1,8 @@
 import pygame
 import random
 from wonderwords import RandomWord
+import math
+
 
 r = RandomWord()
 pygame.init()
@@ -31,13 +33,17 @@ background_image = pygame.transform.scale(background_image_original, (new_width,
 
 x_pos = 0
 
-player_width = 50
-player_height = 150
+player_width = 240
+player_height = 240
 player_x = 85
-player_y = screen_height - player_height - 175
+player_y = screen_height - player_height - 250
 player = pygame.Rect(player_x, player_y, player_width, player_height)
 player_health = 3
 player_score = 0
+levitation_range = 10  # половина максимального движения вверх и вниз
+levitation_speed = 0.03  # скорость изменения угла
+levitation_angle = 0
+
 
 # Здесь появиться оптимизация
 pygame_events = [
@@ -51,26 +57,45 @@ pygame.event.set_allowed(pygame_events)
 platform_height = 175
 platform = pygame.Rect(0, screen_height - platform_height, screen_width, platform_height)
 
+max_flying_monster_height = screen_height - player_height - 300
+
 walking_monsters = []
 flying_monsters = []
-fireballs = []
-words_to_use = r.random_words(200)
+particles = []
+words_to_use = r.random_words(200, word_max_length=3)
 
 font = pygame.font.Font('src/Minecraft.ttf', 36)
 
 monster_images = {
-    "banshee": pygame.transform.scale(pygame.image.load("src/banshee.png").convert_alpha(), (80, 80)),
-    "slime": pygame.transform.scale(pygame.image.load("src/slime.png").convert_alpha(), (60, 60)),
-    "skeleton": pygame.transform.scale(pygame.image.load("src/skeleton.png").convert_alpha(), (70, 70)),
-    "fire_elemental": pygame.transform.scale(pygame.image.load("src/fire_elemental.png").convert_alpha(), (90, 90)),
-    "ent": pygame.transform.scale(pygame.image.load("src/ent.png").convert_alpha(), (100, 100))
+    "wisp": pygame.transform.scale(pygame.image.load("src/wisp.png").convert_alpha(), (100, 100)),
+    "slime": pygame.transform.scale(pygame.image.load("src/slime.png").convert_alpha(), (80, 80))
 }
 
 full_heart_image = pygame.image.load("src/full_heart.png").convert_alpha()
 full_heart_image = pygame.transform.scale(full_heart_image, (80, 80))
 
-fireball_image = pygame.image.load("src/fireball.png").convert_alpha()
-fireball_image = pygame.transform.scale(fireball_image, (40, 20))
+player_image = pygame.image.load("src/player.png")  # Загрузите ваше изображение игрока
+player_image = pygame.transform.scale(player_image, (240, 240))
+
+class Particle:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.size = random.randint(5, 10)
+        self.life = random.randint(20, 50)
+        self.color = (random.randint(200, 255), random.randint(100, 200), 0)
+        self.x_vel = random.uniform(-1, 1)
+        self.y_vel = random.uniform(-1, 1)
+
+    def update(self):
+        self.x += self.x_vel
+        self.y += self.y_vel
+        self.size -= 0.1  # Уменьшаем размер
+        self.life -= 0.1  # Уменьшаем жизнь
+
+    def draw(self, screen):
+        if self.life > 0 and self.size > 0:
+            pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), int(self.size))
 
 
 def create_monster():
@@ -78,33 +103,39 @@ def create_monster():
     monster_image = monster_images[monster_type]
     monster_width = monster_image.get_width()
     monster_height = monster_image.get_height()
-    monster_x = screen_width 
+    monster_x = screen_width  # Монстры появляются с правого края экрана
     monster_word = random.choice(words_to_use)
 
-    if monster_type in ["banshee", "fire_elemental"]:
-        monster_y = random.randint(50, screen_height - platform_height - monster_height)
+    if monster_type == "wisp":
+        # Допустим, wisp летает, поэтому он может появляться выше на экране
+        monster_y = random.randint(50, max_flying_monster_height)
         monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
         flying_monsters.append((monster, monster_word, monster_type))
-        print(f"Created flying monster {monster_type} at {monster_x}, {monster_y}")
-
     else:
         monster_y = screen_height - platform_height - monster_height
         monster = pygame.Rect(monster_x, monster_y, monster_width, monster_height)
         walking_monsters.append((monster, monster_word, monster_type))
-        print(f"Created walking monster {monster_type} at {monster_x}, {monster_y}")
-
 
 
 def update_monsters():
+    global player_health
+
     for monster, word, monster_type in list(walking_monsters):
         monster.x -= 5
         if monster.right < 0:
             walking_monsters.remove((monster, word, monster_type))
+            player_health -= 1  # Уменьшаем здоровье игрока, когда монстр уходит за экран
 
     for monster, word, monster_type in list(flying_monsters):
         monster.x -= 3
         if monster.right < 0:
             flying_monsters.remove((monster, word, monster_type))
+            player_health -= 1  # То же самое для летающих монстров
+
+    # Проверяем, не закончилась ли игра из-за потери здоровья
+    if player_health <= 0:
+        game_over()
+
 
 
 def update_player():
@@ -114,22 +145,9 @@ def update_player():
         player.bottom = platform.top
 
 
-def check_collision():
-    global player_health, player_score
-
-    for monster, word, monster_type in walking_monsters:
-        if player.colliderect(monster):
-            player_health -= 1
-            walking_monsters.remove((monster, word, monster_type))
-            if player_health <= 0:
-                game_over()
-
-    for monster, word, monster_type in flying_monsters:
-        if player.colliderect(monster):
-            player_health -= 1
-            flying_monsters.remove((monster, word, monster_type))
-            if player_health <= 0:
-                game_over()
+def create_particles(x, y):
+    for _ in range(20):  # Создаем 20 частиц для визуального эффекта
+        particles.append(Particle(x, y))
 
 
 def game_over():
@@ -164,12 +182,10 @@ def game_over():
 def reset_game():
     global player_health, player_score, x_pos, walking_monsters, flying_monsters
 
-    # Сбрасываем основные переменные
     player_health = 3
     player_score = 0
     x_pos = 0
 
-    # Очищаем списки монстров
     walking_monsters = []
     flying_monsters = []
 
@@ -198,7 +214,7 @@ def show_menu():
 
 
 def main():
-    global player_health, player_score, x_pos
+    global player_health, player_score, x_pos, levitation_angle
 
     reset_game()
     show_menu()
@@ -215,7 +231,7 @@ def main():
         if x_pos < 0:
             screen.blit(background_image, (x_pos + image_width, 0))
         
-        x_pos -= 2  # Скорость движения фона влево
+        x_pos -= 2
         
         if -x_pos >= image_width:
             x_pos = 0
@@ -228,11 +244,13 @@ def main():
                         
                         if word == user_input:
                             walking_monsters.remove((monster, word, monster_type))
+                            create_particles(monster.x, monster.y)
                             player_score += 500
                             break
                     for monster, word, monster_type in flying_monsters:
                         if word == user_input:
                             flying_monsters.remove((monster, word, monster_type))
+                            create_particles(monster.x, monster.y)
                             player_score += 500
                             break
                     user_input = ""
@@ -252,9 +270,20 @@ def main():
 
         update_player()
         update_monsters()
-        check_collision()
+        
+        levitation_angle += levitation_speed
+        levitation_offset = levitation_range * math.sin(levitation_angle)
+        player.y = player_y + levitation_offset
 
-        pygame.draw.rect(screen, RED, player)
+        for particle in particles[:]:
+            particle.update()
+            if particle.life <= 0:
+                particles.remove(particle)
+
+        for particle in particles:
+            particle.draw(screen)
+
+        screen.blit(player_image, player)
         for monster, word, monster_type in walking_monsters + flying_monsters:
             screen.blit(monster_images[monster_type], (monster.x, monster.y))
             word_text = font.render(word, True, BLACK)
