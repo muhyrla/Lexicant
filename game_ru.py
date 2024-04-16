@@ -1,10 +1,7 @@
 import pygame
 import random
-from wonderwords import RandomWord
 import math
 
-
-r = RandomWord()
 pygame.init()
 
 display_info = pygame.display.Info()

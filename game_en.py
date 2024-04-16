@@ -1,10 +1,7 @@
 import pygame
 import random
-from wonderwords import RandomWord
 import math
 
-
-r = RandomWord()
 pygame.init()
 
 display_info = pygame.display.Info()
@@ -60,7 +57,8 @@ max_flying_monster_height = screen_height - player_height - 300
 monsters = []
 particles = []
 
-words_to_use = r.random_words(200, word_max_length=6)
+with open('src/summary_en.txt', encoding='utf-8') as words:
+    words_to_use = words.readlines()
 
 font = pygame.font.Font('src/EpilepsySans.ttf', 36)
 
@@ -69,7 +67,7 @@ monster_images = {
     "slime": pygame.transform.scale(pygame.image.load("src/slime.png").convert_alpha(), (130, 130))
 }
 
-monster_images['rickroll'] = pygame.transform.scale(pygame.image.load("src/rickroll.jpg").convert_alpha(), (250, 250))
+monster_images['ponasenkov'] = pygame.transform.scale(pygame.image.load("src/ponasenkov.png").convert_alpha(), (200, 363))
 
 red_button = pygame.image.load('src/red_button.png')
 red_button = pygame.transform.scale(red_button, (640//2,234//2))
@@ -81,8 +79,8 @@ player_image = pygame.transform.scale(player_image, (240, 240))
 
 die_sound = pygame.mixer.Sound('src/die.wav')
 shot_sound = pygame.mixer.Sound('src/shot.wav')
-pygame.mixer.music.set_volume(0.8)
-pygame.mixer.music.load('src/rickroll.mp3')
+pygame.mixer.music.set_volume(1.1)
+pygame.mixer.music.load('src/ponasenkov.wav')
 
 
 
@@ -109,7 +107,7 @@ class Particle:
 
 def create_monster():
 
-    if any(m[2] == 'rickroll' for m in monsters):
+    if any(m[2] == 'ponasenkov' for m in monsters):
         return
 
     monster_type = random.choice(["wisp", "slime"])
@@ -139,7 +137,7 @@ def update_monsters():
     global player_health, monsters
 
     for i, (monster, word, monster_type, angle, base_y) in enumerate(monsters):
-        if monster_type == 'rickroll':
+        if monster_type == 'ponasenkov':
             monster.x -= player_health
             if monster.x + monster.width < 0:
                 player_health -= 1
@@ -175,7 +173,7 @@ def create_particles(x, y):
 
 
 def game_over():
-    game_over_text = font.render("You've been Rickrolled :(", True, RED)
+    game_over_text = font.render("You've been ponasenkoved :(", True, RED)
     try_again_button = pygame.Rect(screen_width // 2 - 320 // 2, screen_height // 2, 320, 117)
     try_again_text = font.render("Try again!", True, WHITE)
     score = font.render(f"Your final score: {player_score}", True, GREEN)
@@ -277,7 +275,7 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if (event.key == pygame.K_SPACE) or (event.key == pygame.K_RETURN):
-                    if boss_appeared and monsters[0][2] == 'rickroll' and not boss_killed:
+                    if boss_appeared and monsters[0][2] == 'ponasenkov' and not boss_killed:
                         boss, word, boss_type, angle, base_y = monsters[0]
                         if user_input.strip() == word:
                             current_boss_word_index += 1
@@ -317,7 +315,7 @@ def main():
             boss_x = screen_width - 200
             boss_y = screen_height // 2 - 100
             boss = pygame.Rect(boss_x, boss_y, 200, 200)
-            monsters.append((boss, boss_phrase[current_boss_word_index], 'rickroll', 0, boss_y))
+            monsters.append((boss, boss_phrase[current_boss_word_index], 'ponasenkov', 0, boss_y))
             boss_appeared = True
 
         
